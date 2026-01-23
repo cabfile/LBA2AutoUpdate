@@ -6,7 +6,11 @@ using System.Diagnostics;
 
 namespace LBA2AutoUpdate {
 	public partial class Form1 : Form {
-		private string[] endpoints = { "https://cabfiel.tmxc.ru", "http://cabfeil.atwebpages.com/lba2", "https://lba2mirror.pages.dev" };
+		private Endpoint[] endpoints = {
+			new Endpoint("https://cabfiel.tmxc.ru", "Primary (Russia)"),
+			new Endpoint("http://cabfeil.atwebpages.com/lba2", "AwardSpace (Bulgaria)"),
+			new Endpoint("https://lba2mirror.pages.dev", "Cloudflare")
+		};
 		private int chunks = 0;
 		private int currentChunk = 1;
 		private bool final;
@@ -32,7 +36,7 @@ namespace LBA2AutoUpdate {
 			try {
 				cversion = ReadVersion("package.nw");
 			} catch {
-				MessageBox.Show("Failed to read the game's version.\nThis might be a sign of corruption. Try redownloading the game through GameJolt or itch.io.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				MessageBox.Show("Failed to read the game's version.\nThis might be a sign of corruption. Try redownloading the game through the website or itch.io.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 				Close();
 				return;
 			}
@@ -50,13 +54,13 @@ namespace LBA2AutoUpdate {
 		}
 
 		private void Initialize() {
-			SetStatus("Figuring out the best location to download the game from...\n(might take a while)");
+			SetStatus("Figuring out the best location to download the game from...\n(might take a few seconds)");
 			var clientSpeedCheck = new System.Net.WebClient();
 			var responseTimes = new long[endpoints.Length];
 			for(int i = 0; i < endpoints.Length; i++) {
 				var t = Stopwatch.StartNew();
 				try {
-					clientSpeedCheck.DownloadData(endpoints[i]);
+					clientSpeedCheck.DownloadData(endpoints[i].address);
 					responseTimes[i] = t.ElapsedMilliseconds;
 				} catch { responseTimes[i] = long.MaxValue; }
 			}
@@ -66,10 +70,12 @@ namespace LBA2AutoUpdate {
 					shortest = responseTimes[i];
 					bestEndpoint = i;
 				}
-			if(shortest == long.MaxValue) Final("Every single location is inaccessible. Try downloading the latest update through GameJolt or itch.io.");
+			if(shortest == long.MaxValue) Final("Every single location is inaccessible. Try downloading the latest update through the website or itch.io.");
+			label2.Text = "Endpoint: " + endpoints[bestEndpoint].label;
 			client = new System.Net.WebClient();
 			client.DownloadDataCompleted += Client_DownloadDataCompleted;
-			client.DownloadDataAsync(new Uri(endpoints[bestEndpoint] + "/meta.txt"));
+			SetStatus("Getting information...");
+			client.DownloadDataAsync(new Uri(endpoints[bestEndpoint].address + "/meta.txt"));
 		}
 
 		private void Client_DownloadDataCompleted(object sender, System.Net.DownloadDataCompletedEventArgs e) {
@@ -118,7 +124,7 @@ namespace LBA2AutoUpdate {
 					currentChunk++;
 					SetStatus("Downloading...");
 					timer1.Start();
-					client.DownloadDataAsync(new Uri(endpoints[bestEndpoint] + "/package.nw." + currentChunk.ToString().PadLeft(3, '0')));
+					client.DownloadDataAsync(new Uri(endpoints[bestEndpoint].address + "/package.nw." + currentChunk.ToString().PadLeft(3, '0')));
 				}
 			} else {
 				File.WriteAllBytes("package.nw", r);
@@ -145,7 +151,7 @@ namespace LBA2AutoUpdate {
 				ProgressShow(true);
 				if(chunks > 0) ProgressShow2(true);
 				timer1.Start();
-				client.DownloadDataAsync(new Uri(endpoints[bestEndpoint] + "/package.nw" + (chunks > 0 ? ".001" : "")));
+				client.DownloadDataAsync(new Uri(endpoints[bestEndpoint].address + "/package.nw" + (chunks > 0 ? ".001" : "")));
 				client.DownloadProgressChanged += Client_DownloadProgressChanged;
 			}
 		}
@@ -207,47 +213,12 @@ namespace LBA2AutoUpdate {
 			progressBar2.BeginInvoke((MethodInvoker)(() => progressBar2.Value = v));
 		}
 	}
-	internal struct Version {
-		public int Major;
-		public int Minor;
-		public int Patch;
-
-		public Version(int major, int minor = 0, int patch = 0) {
-			Major = major;
-			Minor = minor;
-			Patch = patch;
-		}
-		public Version(byte[] rawVersion) {
-			Major = Convert.ToInt32(((char)rawVersion[0]).ToString(), 16);
-			Minor = Convert.ToInt32(((char)rawVersion[1]).ToString(), 16);
-			Patch = Convert.ToInt32(((char)rawVersion[2]).ToString(), 16);
-		}
-		public Version(string version) {
-			string[] s = version.Split('.');
-			Major = Convert.ToInt32(s[0]);
-			if(s.Length > 1) Minor = Convert.ToInt32(s[1]); else Minor = 0;
-			if(s.Length > 2) Patch = Convert.ToInt32(s[2]); else Patch = 0;
-		}
-		public override string ToString() {
-			return Major + "." + Minor + "." + Patch;
-		}
-		public static bool operator ==(Version left, Version right) {
-			return left.Major == right.Major && left.Minor == right.Minor && left.Patch == right.Patch;
-		}
-		public static bool operator !=(Version left, Version right) {
-			return left.Major != right.Major || left.Minor != right.Minor || left.Patch != right.Patch;
-		}
-		public static bool operator >(Version left, Version right) {
-			if(left.Major > right.Major) return true;
-			if(left.Minor > right.Minor) return true;
-			if(left.Patch > right.Patch) return true;
-			return false;
-		}
-		public static bool operator <(Version left, Version right) {
-			if(left.Major < right.Major) return true;
-			if(left.Minor < right.Minor) return true;
-			if(left.Patch < right.Patch) return true;
-			return false;
+	internal struct Endpoint {
+		public string address;
+		public string label;
+		public Endpoint(string address, string label) {
+			this.address = address;
+			this.label = label;
 		}
 	}
 }
