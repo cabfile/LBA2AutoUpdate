@@ -9,7 +9,8 @@ namespace LBA2AutoUpdate {
 		private Endpoint[] endpoints = {
 			new Endpoint("https://cabfiel.tmxc.ru", "Primary (Russia)"),
 			new Endpoint("http://cabfeil.atwebpages.com/lba2", "AwardSpace (Bulgaria)"),
-			new Endpoint("https://lba2mirror.pages.dev", "Cloudflare")
+			new Endpoint("https://lba2mirror.pages.dev", "Cloudflare"),
+			new Endpoint("https://sound.jp/coolio", "Sound.jp (Japan)"),
 		};
 		private int chunks = 0;
 		private int currentChunk = 1;
